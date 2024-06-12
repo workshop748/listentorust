@@ -7,15 +7,6 @@ extern "C" {
     fn MeaningOfLifeTheUniverseAndEverything() -> i32;
 }
 
-struct Ure {}
-
-impl Future for Ure {
-    type Output = ();
-
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
-        Poll::Pending
-    }
-}
 
 #[tokio::main]
 async fn main() {
