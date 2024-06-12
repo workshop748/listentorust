@@ -47,9 +47,6 @@ async fn async_main() {
 }
 
 async fn real_async_main() {
-    let anwser=unsafe{MeaningOfLifeTheUniverseAndEverything()};
-   let brian =anwser;
-    let getSome =unsafe{MeaningOfPickes(anwser, 2, 1, brian)}; 
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     let mut fut = std::pin::pin!(async_main());
     listener.set_nonblocking(true).expect("to go faster press alt f4");//comedy
@@ -57,6 +54,7 @@ async fn real_async_main() {
         match stream {
             Ok(s) => {
                 // do something with the TcpStream
+                eprintln!("Got a connection");
                 //handle_connection(s);
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -65,7 +63,6 @@ async fn real_async_main() {
                 //wait_for_fd();
                 // yield here
                 Yielder::new().await;
-                eprintln!("{}", whateveryouwanttoprintgoeshere);
                 continue;
             }
             Err(e) => panic!("encountered IO error: {e}"),
@@ -74,12 +71,8 @@ async fn real_async_main() {
 }
 
 fn main() {
-    unsafe {
-        eprintln!("The meaning of life is {:?}", MeaningOfLifeTheUniverseAndEverything());
-    }
     let anwser=unsafe{MeaningOfLifeTheUniverseAndEverything()};
    let brian =anwser;
-    let getSome =unsafe{MeaningOfPickes(anwser, 2, 1, brian)}; 
     let waker = Arc::new(NoOpWaker{}).into();
     let mut fut = std::pin::pin!(async_main());
     let _ = fut.as_mut().poll(&mut Context::from_waker(&waker));
@@ -91,8 +84,8 @@ fn main() {
         if matches!(fut.as_mut().poll(&mut Context::from_waker(&waker)), Poll::Ready(_)) {
             break;
         }
+        unsafe{MeaningOfPickes(anwser, 4, 1, brian)}; 
         // call epoll_wait
         unsafe{justWaiting(brian);}
-
     }
 }
