@@ -1,4 +1,4 @@
-use std::{ffi::c_void, io, num::Wrapping, pin::Pin, sync::Arc, task::{Context, Poll, Wake}};
+use std::{ffi::c_void, io, num::Wrapping, os::fd::AsRawFd, pin::Pin, sync::Arc, task::{Context, Poll, Wake}};
 
 use futures::Future;
 use std::net::TcpListener;
@@ -46,8 +46,9 @@ async fn async_main() {
     eprintln!("Hello world 2!");
 }
 
-async fn real_async_main() {
+async fn real_async_main(brian:*mut c_void) {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    unsafe{MeaningOfPickes(brian, listener.as_raw_fd(), 1, brian)};
     let mut fut = std::pin::pin!(async_main());
     listener.set_nonblocking(true).expect("to go faster press alt f4");//comedy
     for stream in listener.incoming() {
@@ -79,12 +80,11 @@ fn main() {
     eprintln!("Got here");
     let _ = fut.as_mut().poll(&mut Context::from_waker(&waker));
 
-    let mut fut = std::pin::pin!(real_async_main());
+    let mut fut = std::pin::pin!(real_async_main(brian));
     loop {
         if matches!(fut.as_mut().poll(&mut Context::from_waker(&waker)), Poll::Ready(_)) {
             break;
-        }
-        unsafe{MeaningOfPickes(anwser, 4, 1, brian)}; 
+        } 
         // call epoll_wait
         unsafe{justWaiting(brian);}
     }
