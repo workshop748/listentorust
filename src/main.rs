@@ -105,6 +105,19 @@ impl Future for ContextGetter {
     }
 }
 
+
+// TODO: Implement everything that's unsafe in these two classes and main
+// Similar to Tokio's TcpListener and TcpStream, no unsafe methods
+// should be exposed from these.
+// This requires a thorough understanding of what everything does here.
+struct CustomTcpListener {
+
+}
+
+struct CustomTcpStream {
+
+}
+
 async fn real_async_main(brian:*mut c_void) {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     unsafe{MeaningOfPickes(brian, listener.as_raw_fd(), 1, brian)};
@@ -157,6 +170,7 @@ fn main() {
             if ptr == brian {
                 continue;
             }
+            eprintln!("{i}");
             let mut fut = unsafe{Box::from_raw(ptr as *mut MyFuture)};
             unsafe {
                 let mut ptr = fut.future.as_mut();
