@@ -7,7 +7,9 @@ extern "C" {
     fn MeaningOfLifeTheUniverseAndEverything() -> *mut c_void;
     fn MeaningOfPickes(valA: *mut c_void,valB:i32,valC:u32,valD: *mut c_void);
         // as I sTARED LONGLYINGLY INTO THE C_VOID I KNEW I COULD NEVER ESC C.
-        fn justWaiting(valA: *mut c_void);
+        fn justWaiting(valA: *mut c_void) -> i32;
+
+    fn GetMyPointerBack(valA: *mut c_void,index:u32) -> *mut c_void;
 }
 
 struct NoOpWaker{}
@@ -90,7 +92,6 @@ async fn real_async_main(brian:*mut c_void) {
     unsafe{MeaningOfPickes(brian, listener.as_raw_fd(), 1, brian)};
     let mut fut = std::pin::pin!(async_main());
     listener.set_nonblocking(true).expect("to go faster press alt f4");//comedy
-    let mut buffer = vec![];
     let waker = ContextGetter{}.await;
     let mut context = Context::from_waker(&waker);
     for stream in listener.incoming() {
@@ -99,8 +100,7 @@ async fn real_async_main(brian:*mut c_void) {
                 // do something with the TcpStream
                 eprintln!("Got a connection");
                 s.set_nonblocking(true).unwrap();
-                unsafe{MeaningOfPickes(brian, s.as_raw_fd(), 1, brian)};
-                buffer.push(Box::pin(thePass(s)));
+                unsafe{MeaningOfPickes(brian, s.as_raw_fd(), 1, Box::into_raw(Box::new(thePass(s))) as *mut c_void)};
                 //handle_connection(s);
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -109,9 +109,6 @@ async fn real_async_main(brian:*mut c_void) {
                 //wait_for_fd();
                 // yield here
                 // Poll other connections
-                for ce in buffer.iter_mut() {
-                    let _ = ce.as_mut().poll(&mut context);
-                }
                 Yielder::new().await;
                 continue;
             }

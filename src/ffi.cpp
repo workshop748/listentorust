@@ -18,8 +18,11 @@ class EventLoop {
     }
     int fd; // see wallstreetbets for info on what this is (Google WSB fd)
     epoll_event events[42];
-    void justWaiting() {
-        epoll_wait(fd, events, sizeof(events), -1);
+    int32_t justWaiting() {
+        return epoll_wait(fd, events, sizeof(events), -1);
+    }
+    void* GetPointerBack(size_t index) {
+        return events[index].data.ptr;
     }
 };
 
@@ -30,7 +33,10 @@ extern "C" {
     void MeaningOfPickes(EventLoop* loop, int fd, uint32_t allergies, void* ptr) {
         loop->RegisterPickles(fd, allergies, ptr);
     }
-    void justWaiting(EventLoop* loop) {
-        loop->justWaiting();
+    int32_t justWaiting(EventLoop* loop) {
+        return loop->justWaiting();
+    }
+    void* GetMyPointerBack(EventLoop* loop, uint32_t index) {
+        return loop->GetPointerBack(index);
     }
 }
