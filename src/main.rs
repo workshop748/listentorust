@@ -1,4 +1,4 @@
-use std::{ffi::c_void, io, num::Wrapping, os::fd::AsRawFd, pin::Pin, sync::Arc, task::{Context, Poll, Wake}};
+use std::{ffi::c_void, io::{self, Read, Write}, net::TcpStream, num::Wrapping, os::fd::AsRawFd, pin::Pin, sync::Arc, task::{Context, Poll, Wake, Waker}};
 
 use futures::Future;
 use std::net::TcpListener;
@@ -45,17 +45,62 @@ async fn async_main() {
     Yielder::new().await;
     eprintln!("Hello world 2!");
 }
+async fn thePass(mut stream:TcpStream)
+{
+    //handle the connection
+    //read and print
+    loop {
+    // this will need a buffer 
+    let mut buffer =[0; 1024];
+    Yielder::new().await;
+    
+    let bytes_read = match stream.read(&mut buffer) {
+        Ok(s) => {
+            s
+        }
+        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+            // wait until network socket is ready, typically implemented
+            // via platform-specific APIs such as epoll or IOCP
+            //wait_for_fd();
+            // yield here
+            Yielder::new().await;
+            continue;
+        }
+        Err(e) => panic!("encountered IO error: {e}"),
+    };
+    stream.write(&buffer[..bytes_read]).unwrap();
+    
+    }
+}
+
+struct ContextGetter {
+    
+}
+
+impl Future for ContextGetter {
+    type Output = Waker;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Poll::Ready(cx.waker().clone())
+    }
+}
 
 async fn real_async_main(brian:*mut c_void) {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     unsafe{MeaningOfPickes(brian, listener.as_raw_fd(), 1, brian)};
     let mut fut = std::pin::pin!(async_main());
     listener.set_nonblocking(true).expect("to go faster press alt f4");//comedy
+    let mut buffer = vec![];
+    let waker = ContextGetter{}.await;
+    let mut context = Context::from_waker(&waker);
     for stream in listener.incoming() {
         match stream {
             Ok(s) => {
                 // do something with the TcpStream
                 eprintln!("Got a connection");
+                s.set_nonblocking(true).unwrap();
+                unsafe{MeaningOfPickes(brian, s.as_raw_fd(), 1, brian)};
+                buffer.push(Box::pin(thePass(s)));
                 //handle_connection(s);
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -63,6 +108,10 @@ async fn real_async_main(brian:*mut c_void) {
                 // via platform-specific APIs such as epoll or IOCP
                 //wait_for_fd();
                 // yield here
+                // Poll other connections
+                for ce in buffer.iter_mut() {
+                    let _ = ce.as_mut().poll(&mut context);
+                }
                 Yielder::new().await;
                 continue;
             }
