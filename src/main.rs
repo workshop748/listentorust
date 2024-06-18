@@ -1,6 +1,6 @@
 use std::{ffi::c_void, io::{self, Read, Write}, net::TcpStream, num::Wrapping, os::fd::AsRawFd, pin::Pin, sync::Arc, task::{Context, Poll, Wake, Waker}};
 
-use futures::Future;
+use futures::{Future, FutureExt};
 use std::net::TcpListener;
 
 extern "C" {
@@ -75,6 +75,24 @@ async fn thePass(mut stream:TcpStream)
     }
 }
 
+struct MyFuture {
+    future:Box<dyn Future<Output = ()> + Unpin>,
+}
+
+impl MyFuture {
+    fn new(f: impl Future<Output = ()> + Unpin + 'static) -> Self {
+        Self {future: Box::new(f)}
+    }
+}
+
+async fn some_function_that_takes_a_future(future: MyFuture) {
+    future.future.await;
+}
+
+fn make_future(f:impl Future<Output = ()> + 'static) -> MyFuture {
+    MyFuture::new(Box::pin(f))
+}
+
 struct ContextGetter {
     
 }
@@ -100,7 +118,7 @@ async fn real_async_main(brian:*mut c_void) {
                 // do something with the TcpStream
                 eprintln!("Got a connection");
                 s.set_nonblocking(true).unwrap();
-                unsafe{MeaningOfPickes(brian, s.as_raw_fd(), 1, Box::into_raw(Box::new(thePass(s))) as *mut c_void)};
+                unsafe{MeaningOfPickes(brian, s.as_raw_fd(), 1, Box::into_raw(Box::new(make_future(thePass(s)))) as *mut c_void)};
                 //handle_connection(s);
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -127,11 +145,25 @@ fn main() {
     let _ = fut.as_mut().poll(&mut Context::from_waker(&waker));
 
     let mut fut = std::pin::pin!(real_async_main(brian));
+    let mut context = Context::from_waker(&waker);
     loop {
-        if matches!(fut.as_mut().poll(&mut Context::from_waker(&waker)), Poll::Ready(_)) {
+        if matches!(fut.as_mut().poll(&mut context), Poll::Ready(_)) {
             break;
         } 
         // call epoll_wait
-        unsafe{justWaiting(brian);}
+        let elements = unsafe{justWaiting(brian)} as u32;
+        for i in 0..elements {
+            let ptr = unsafe{GetMyPointerBack(brian, i)};
+            if ptr == brian {
+                continue;
+            }
+            let mut fut = unsafe{Box::from_raw(ptr as *mut MyFuture)};
+            unsafe {
+                let mut ptr = fut.future.as_mut();
+                let pinned = Pin::new_unchecked(&mut ptr);
+                let _ = pinned.poll(&mut context);
+                Box::into_raw(fut);
+            }
+        }
     }
 }
